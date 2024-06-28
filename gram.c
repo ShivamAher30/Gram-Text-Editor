@@ -37,7 +37,7 @@ struct editorConfig
 {
     int cx, cy;
     int numrow;
-    erow row;
+    erow  * row;
     int screenrows;
     int screencolumns;
     struct termios originalstruct;
@@ -249,7 +249,7 @@ void editordrawtilde(struct abf *ab)
             abappend("\x1b[K", 3, ab);
             abappend("\r\n", 2, ab);
         }
-        else if (i == E.screenrows / 3)
+        else if (i == E.screenrows / 3 && E.numrow == 0)
         {
             char welcome[80];
             int welcomelen = snprintf(welcome, sizeof(welcome), "Gram Text Editor %s ", GRAM_VERSION);
@@ -303,7 +303,31 @@ void editorrefreshscreen()
     write(STDOUT_FILENO, ab.b, ab.len);
     abFree(&ab);
 }
+ // Row Operations 
 
+// struct
+// typedef struct erow
+// {
+//     int size;
+//     char *chars;
+
+// } erow;
+// struct editorConfig
+// {
+//     int cx, cy;
+//     int numrow;
+//     erow row;
+//     int screenrows;
+//     int screencolumns;
+//     struct termios originalstruct;
+// };
+// struct editorConfig E;
+void editorappendrow(char*s ,size_t len)
+{
+    E.row =  realloc(E.row ,sizeof(erow) * E.numrow+1);
+    
+
+}
 // file i/o
 
 void editoropen(char * filename)
@@ -337,6 +361,8 @@ void initeditor()
     E.cx = 0;
     E.cy = 0;
     E.numrow = 0;
+    E.row = NULL;
+
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
