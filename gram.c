@@ -306,15 +306,28 @@ void editorrefreshscreen()
 
 // file i/o
 
-void editoropen()
+void editoropen(char * filename)
 {
-    char *line = "Hello world !!!";
-    ssize_t linelen = 13;
+    FILE *fl = fopen(filename, "r");
+    if (!fl)
+        die("fopen");
+    char *line = NULL;
+    ssize_t linecap = 0;
+    ssize_t linelen;
+    linelen = getline(&line, &linecap, fl);
+    while (linelen > 0 && line[linelen] == '\n' || line[linelen] == '\r')
+    {
+        linelen--;
+    }
+
     E.row.size = linelen;
     E.row.chars = malloc(linelen + 1);
     memcpy(E.row.chars, line, linelen);
     E.row.chars[linelen] = '\0';
     E.numrow = 1;
+    free(line);
+    fclose(fl);
+
 }
 
 // init
@@ -331,12 +344,43 @@ void initeditor()
     }
 }
 
-int main()
+
+
+
+
+
+
+
+
+
+
+// The parameters in the main function of a C program are used to handle command-line arguments passed to the program when it is executed. Here's a breakdown of the parameters:
+
+// int argc:
+
+// argc stands for "argument count".
+// It represents the number of command-line arguments passed to the program, including the program's name itself.
+// For example, if the program is run with ./program file.txt, argc will be 2 (one for ./program and one for file.txt).
+// char *argv[]:
+
+// argv stands for "argument vector".
+// It is an array of character pointers (strings) that point to each of the command-line arguments.
+// argv[0] is the name of the program as it was invoked (e.g., ./program).
+// argv[1] is the first command-line argument passed to the program (e.g., file.txt in the example above).
+// If there are more arguments, they will be stored in argv[2], argv[3], and so on.
+
+
+
+int main(int argc , char * argv[])
 {
     enablerawMode();
     initeditor();
-    editoropen();
+    if(argc > 1 )
+    {
+        editoropen(argv[1]);
 
+    }
+ 
     char c;
     while (1)
     {
