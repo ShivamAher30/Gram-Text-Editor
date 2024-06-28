@@ -13,6 +13,18 @@
 // Defines
 #define CTRL_KEY(k) ((k) & (0x1f))
 #define GRAM_VERSION "1.0.0.0"
+
+enum editorKey
+{
+    ARROW_LEFT = 2000,
+    ARROW_RIGHT,
+    ARROW_DOWN,
+    ARROW_UP,
+    PAGE_UP,
+    PAGE_DOWN,
+    DEL_KEY
+};
+
 // struct
 struct editorConfig
 {
@@ -93,7 +105,7 @@ void enablerawMode()
     }
 }
 
-char readkey()
+int readkey()
 {
     int nread;
     char c;
@@ -104,41 +116,112 @@ char readkey()
             die("read");
         }
     }
+    if (c == '\x1b')
+    {
+        char seq[3];
+
+        if (read(STDIN_FILENO, &seq[0], 1) != 1)
+            return '\x1b';
+        if (read(STDIN_FILENO, &seq[1], 1) != 1)
+            return '\x1b';
+
+        // To complete our low-level terminal code, we need to detect a few more special keypresses that use escape sequences, like the arrow keys did. We’ll start with the Page Up and Page Down keys. Page Up is sent as <esc>[5~ and Page Down is sent as <esc>[6~.
+
+        if (seq[0] == '[')
+        {
+            if (seq[1] >= '0' && seq[1] <= '9')
+            {
+                if (read(STDIN_FILENO, &seq[2], 1) != 1)
+                    return '\x1b';
+                if (seq[2] == '~')
+                {
+                    switch (seq[1])
+                    {
+                    case '5':
+                        return PAGE_UP;
+                        break;
+
+                    case '6':
+                        return PAGE_DOWN;
+                    }
+                }
+            }
+            else
+            {
+                switch (seq[1])
+                {
+                case 'A':
+                    return ARROW_UP;
+                    break;
+
+                case 'B':
+                    return ARROW_DOWN;
+                    break;
+
+                case 'C':
+                    return ARROW_RIGHT;
+                    break;
+
+                case 'D':
+                    return ARROW_LEFT;
+                    break;
+
+                default:
+                    break;
+                }
+            }
+        }
+    }
     return c;
 }
 
 // Input
-void editormovecursor(char c)
+void editormovecursor(int c)
 {
     switch (c)
     {
-    case 'w':
-        E.cy--;
+    case ARROW_UP:
+        if (E.cy > 0)
+            E.cy--;
         break;
-    case 'a':
-        E.cx--;
+    case ARROW_LEFT:
+        if (E.cx > 1)
+            E.cx--;
         break;
-    case 's':
-        E.cy++;
+    case ARROW_DOWN:
+        if (E.cy - 1 < E.screenrows)
+            E.cy++;
         break;
-    case 'd':
-        E.cx++;
+    case ARROW_RIGHT:
+        if (E.cx - 1 < E.screencolumns)
+            E.cx++;
         break;
     }
 }
 void editorKeyProcess()
 {
-    char c = readkey();
+    int c = readkey();
     switch (c)
     {
     case 'q':
         exit(0);
 
         break;
-    case 'w':
-    case 'a':
-    case 's':
-    case 'd':
+    case PAGE_DOWN:
+    case PAGE_UP:
+        // We create a code block with that pair of braces so that we’re allowed to declare the times variable. (You can’t declare variables directly inside a switch statement.)
+        {
+            int time = E.screenrows;
+            while (time--)
+            {
+                editormovecursor(c == PAGE_DOWN ? ARROW_DOWN : ARROW_UP);
+            }
+        }
+        break;
+    case ARROW_UP:
+    case ARROW_LEFT:
+    case ARROW_DOWN:
+    case ARROW_RIGHT:
         editormovecursor(c);
         break;
     }
