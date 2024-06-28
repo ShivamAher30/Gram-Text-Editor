@@ -9,6 +9,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 
 // Defines
 #define CTRL_KEY(k) ((k) & (0x1f))
@@ -26,10 +27,17 @@ enum editorKey
 };
 
 // struct
+typedef struct erow
+{
+    int size;
+    char *chars;
+
+} erow;
 struct editorConfig
 {
     int cx, cy;
-
+    int numrow;
+    erow row;
     int screenrows;
     int screencolumns;
     struct termios originalstruct;
@@ -232,7 +240,16 @@ void editordrawtilde(struct abf *ab)
 {
     for (int i = 0; i < E.screenrows; i++)
     {
-        if (i == E.screenrows / 3)
+        if (i < E.numrow)
+        {
+            int len = E.row.size;
+            if (len > E.screencolumns)
+                len = E.screencolumns;
+            abappend(E.row.chars, len, ab);
+            abappend("\x1b[K", 3, ab);
+            abappend("\r\n", 2, ab);
+        }
+        else if (i == E.screenrows / 3)
         {
             char welcome[80];
             int welcomelen = snprintf(welcome, sizeof(welcome), "Gram Text Editor %s ", GRAM_VERSION);
@@ -287,12 +304,26 @@ void editorrefreshscreen()
     abFree(&ab);
 }
 
+// file i/o
+
+void editoropen()
+{
+    char *line = "Hello world !!!";
+    ssize_t linelen = 13;
+    E.row.size = linelen;
+    E.row.chars = malloc(linelen + 1);
+    memcpy(E.row.chars, line, linelen);
+    E.row.chars[linelen] = '\0';
+    E.numrow = 1;
+}
+
 // init
 
 void initeditor()
 {
     E.cx = 0;
     E.cy = 0;
+    E.numrow = 0;
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
@@ -304,6 +335,7 @@ int main()
 {
     enablerawMode();
     initeditor();
+    editoropen();
 
     char c;
     while (1)
