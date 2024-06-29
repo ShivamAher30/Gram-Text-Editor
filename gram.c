@@ -37,7 +37,9 @@ struct editorConfig
 {
     int cx, cy;
     int numrow;
-    erow  * row;
+    int rowoff;
+    int coloff;
+    erow *row;
     int screenrows;
     int screencolumns;
     struct termios originalstruct;
@@ -197,8 +199,10 @@ void editormovecursor(int c)
             E.cx--;
         break;
     case ARROW_DOWN:
-        if (E.cy - 1 < E.screenrows)
+        if (E.cy < E.numrow)
+        {
             E.cy++;
+        }
         break;
     case ARROW_RIGHT:
         if (E.cx - 1 < E.screencolumns)
@@ -236,16 +240,32 @@ void editorKeyProcess()
 }
 
 // Output
+void editorScroll ( )
+{
+    if(E.cy < E.rowoff)
+    {
+        E.rowoff = E.cy;
+
+    }
+    if(E.cy>=E.rowoff+ E.screenrows )
+    {
+        E.rowoff= E.cy - E.screenrows +1;
+    }
+    
+}
 void editordrawtilde(struct abf *ab)
 {
+
     for (int i = 0; i < E.screenrows; i++)
     {
-        if (i < E.numrow)
+        int filerow = i + E.rowoff ;
+
+        if (filerow < E.numrow)
         {
-            int len = E.row.size;
+            int len = E.row[filerow].size;
             if (len > E.screencolumns)
                 len = E.screencolumns;
-            abappend(E.row.chars, len, ab);
+            abappend(E.row[filerow].chars, len, ab);
             abappend("\x1b[K", 3, ab);
             abappend("\r\n", 2, ab);
         }
@@ -273,7 +293,7 @@ void editordrawtilde(struct abf *ab)
             abappend("\r\n", 2, ab);
         }
 
-        else if (i < E.screenrows - 1)
+        else if (filerow >= E.numrow)
         {
             abappend("~", 1, ab);
             abappend("\x1b[K", 3, ab);
@@ -289,6 +309,8 @@ void editordrawtilde(struct abf *ab)
 
 void editorrefreshscreen()
 {
+    editorScroll();
+
     struct abf ab = ABUF_INIT;
     abappend("\x1b[?25l", 6, &ab);
     // The following commmand is used to reposition the cursor at top of the terminal
@@ -303,34 +325,22 @@ void editorrefreshscreen()
     write(STDOUT_FILENO, ab.b, ab.len);
     abFree(&ab);
 }
- // Row Operations 
+// Row Operations
 
-// struct
-// typedef struct erow
-// {
-//     int size;
-//     char *chars;
 
-// } erow;
-// struct editorConfig
-// {
-//     int cx, cy;
-//     int numrow;
-//     erow row;
-//     int screenrows;
-//     int screencolumns;
-//     struct termios originalstruct;
-// };
-// struct editorConfig E;
-void editorappendrow(char*s ,size_t len)
+void editorappendrow(char *s, size_t len)
 {
-    E.row =  realloc(E.row ,sizeof(erow) * E.numrow+1);
-    
-
+    E.row = realloc(E.row, sizeof(erow) * (E.numrow + 1));
+    int at = E.numrow;
+    E.row[at].size = len;
+    E.row[at].chars = malloc(len + 1);
+    memcpy(E.row[at].chars, s, len);
+    E.row[at].chars[len] = '\0';
+    E.numrow++;
 }
 // file i/o
 
-void editoropen(char * filename)
+void editoropen(char *filename)
 {
     FILE *fl = fopen(filename, "r");
     if (!fl)
@@ -338,20 +348,19 @@ void editoropen(char * filename)
     char *line = NULL;
     ssize_t linecap = 0;
     ssize_t linelen;
-    linelen = getline(&line, &linecap, fl);
-    while (linelen > 0 && line[linelen] == '\n' || line[linelen] == '\r')
+
+    while ((linelen = getline(&line, &linecap, fl)) != -1)
     {
-        linelen--;
+        while (linelen > 0 && line[linelen - 1] == '\n' || line[linelen - 1] == '\r')
+        {
+            linelen--;
+        }
+
+        editorappendrow(line, linelen);
     }
 
-    E.row.size = linelen;
-    E.row.chars = malloc(linelen + 1);
-    memcpy(E.row.chars, line, linelen);
-    E.row.chars[linelen] = '\0';
-    E.numrow = 1;
     free(line);
     fclose(fl);
-
 }
 
 // init
@@ -362,23 +371,13 @@ void initeditor()
     E.cy = 0;
     E.numrow = 0;
     E.row = NULL;
-
+    E.rowoff = 0;
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
         die("Getwindowsize");
     }
 }
-
-
-
-
-
-
-
-
-
-
 
 // The parameters in the main function of a C program are used to handle command-line arguments passed to the program when it is executed. Here's a breakdown of the parameters:
 
@@ -395,18 +394,15 @@ void initeditor()
 // argv[1] is the first command-line argument passed to the program (e.g., file.txt in the example above).
 // If there are more arguments, they will be stored in argv[2], argv[3], and so on.
 
-
-
-int main(int argc , char * argv[])
+int main(int argc, char *argv[])
 {
     enablerawMode();
     initeditor();
-    if(argc > 1 )
+    if (argc > 1)
     {
         editoropen(argv[1]);
-
     }
- 
+
     char c;
     while (1)
     {
