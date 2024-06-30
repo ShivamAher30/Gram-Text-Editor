@@ -9,6 +9,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 
 // Defines
 #define CTRL_KEY(k) ((k) & (0x1f))
@@ -26,9 +27,17 @@ enum editorKey
 };
 
 // struct
+typedef struct erow
+{
+    int size;
+    char *chars;
+
+} erow;
 struct editorConfig
 {
     int cx, cy;
+    erow row;
+    int numrows;
 
     int screenrows;
     int screencolumns;
@@ -189,7 +198,7 @@ void editormovecursor(int c)
             E.cx--;
         break;
     case ARROW_DOWN:
-        if (E.cy  < E.screenrows - 1)
+        if (E.cy < E.screenrows - 1)
             E.cy++;
         break;
     case ARROW_RIGHT:
@@ -232,39 +241,53 @@ void editordrawtilde(struct abf *ab)
 {
     for (int i = 0; i < E.screenrows; i++)
     {
-        if (i == E.screenrows / 3)
+        if (i >= E.numrows)
         {
-            char welcome[80];
-            int welcomelen = snprintf(welcome, sizeof(welcome), "Gram Text Editor %s ", GRAM_VERSION);
-            if (welcomelen > E.screencolumns)
+            if (i == E.screenrows / 3)
             {
-                welcomelen = E.screencolumns;
+                char welcome[80];
+                int welcomelen = snprintf(welcome, sizeof(welcome), "Gram Text Editor %s ", GRAM_VERSION);
+                if (welcomelen > E.screencolumns)
+                {
+                    welcomelen = E.screencolumns;
+                }
+                int padding = (E.screencolumns - welcomelen) / 2;
+                if (padding)
+                {
+                    abappend("~", 1, ab);
+                    padding--;
+                }
+                while (padding--)
+                {
+
+                    abappend(" ", 1, ab);
+                }
+                abappend(welcome, welcomelen, ab);
+                abappend("\x1b[K", 3, ab);
+                abappend("\r\n", 2, ab);
             }
-            int padding = (E.screencolumns - welcomelen) / 2;
-            if (padding)
+
+            else if (i < E.screenrows - 1)
             {
                 abappend("~", 1, ab);
-                padding--;
+                abappend("\x1b[K", 3, ab);
+                abappend("\r\n", 2, ab);
             }
-            while (padding--)
+            else
             {
-
-                abappend(" ", 1, ab);
+                abappend("~", 1, ab);
             }
-            abappend(welcome, welcomelen, ab);
-            abappend("\x1b[K", 3, ab);
-            abappend("\r\n", 2, ab);
-        }
-
-        else if (i < E.screenrows - 1)
-        {
-            abappend("~", 1, ab);
-            abappend("\x1b[K", 3, ab);
-            abappend("\r\n", 2, ab);
         }
         else
         {
-            abappend("~", 1, ab);
+            int len = E.row.size;
+            if (len > E.screencolumns)
+            {
+                len = E.screencolumns;
+            }
+            abappend(E.row.chars, len, ab);
+            abappend("\x1b[K", 3, ab);
+            abappend("\r\n", 2, ab);
         }
     }
 }
@@ -286,13 +309,25 @@ void editorrefreshscreen()
     write(STDOUT_FILENO, ab.b, ab.len);
     abFree(&ab);
 }
+// file i/o
+void editoropen()
+{
+    char *line = "Hello World !";
+    ssize_t linelen = 13;
+    E.row.size = linelen;
 
+    E.row.chars = malloc(sizeof(char) * (linelen + 1));
+    memcpy(E.row.chars, line, E.row.size);
+    E.row.chars[linelen] = '\0';
+    E.numrows++;
+}
 // init
 
 void initeditor()
 {
     E.cx = 0;
     E.cy = 0;
+    E.numrows = 0;
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
@@ -304,6 +339,7 @@ int main()
 {
     enablerawMode();
     initeditor();
+    editoropen();
 
     char c;
     while (1)
