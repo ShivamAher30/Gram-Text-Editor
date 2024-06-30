@@ -38,7 +38,7 @@ struct editorConfig
     int cx, cy;
     int numrows;
     erow *row;
-
+    int rowoff;
     int screenrows;
     int screencolumns;
     struct termios originalstruct;
@@ -191,14 +191,16 @@ void editormovecursor(int c)
     {
     case ARROW_UP:
         if (E.cy != 0)
+        {
             E.cy--;
+        }
         break;
     case ARROW_LEFT:
         if (E.cx != 0)
             E.cx--;
         break;
     case ARROW_DOWN:
-        if (E.cy < E.screenrows - 1)
+        if (E.cy <= E.numrows - 1)
             E.cy++;
         break;
     case ARROW_RIGHT:
@@ -237,12 +239,25 @@ void editorKeyProcess()
 }
 
 // Output
+void scrolleditor()
+{
+    if (E.cy < E.rowoff)
+    {
+        E.rowoff = E.cy;
+    }
+    if (E.cy >= E.screenrows + E.rowoff)
+    {
+        E.rowoff = E.cy - E.screenrows + 1;
+    }
+}
 void editordrawtilde(struct abf *ab)
 {
     for (int i = 0; i < E.screenrows; i++)
     {
-        if (i >= E.numrows)
+        int filerow = i + E.rowoff;
+        if (filerow >= E.numrows)
         {
+
             if (i == E.screenrows / 3 && E.numrows == 0)
             {
                 char welcome[80];
@@ -280,12 +295,12 @@ void editordrawtilde(struct abf *ab)
         }
         else
         {
-            int len = E.row[i].size;
+            int len = E.row[filerow].size;
             if (len > E.screencolumns)
             {
                 len = E.screencolumns;
             }
-            abappend(E.row[i].chars, len, ab);
+            abappend(E.row[filerow].chars, len, ab);
             abappend("\x1b[K", 3, ab);
             abappend("\r\n", 2, ab);
         }
@@ -295,6 +310,7 @@ void editordrawtilde(struct abf *ab)
 
 void editorrefreshscreen()
 {
+    scrolleditor();
     struct abf ab = ABUF_INIT;
     abappend("\x1b[?25l", 6, &ab);
     // The following commmand is used to reposition the cursor at top of the terminal
@@ -302,7 +318,7 @@ void editorrefreshscreen()
     editordrawtilde(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", 0 , 0);
     abappend(buf, strlen(buf), &ab);
 
     abappend("\x1b[?25h", 6, &ab);
@@ -351,6 +367,7 @@ void initeditor()
     E.cy = 0;
     E.numrows = 0;
     E.row = NULL;
+    E.rowoff = 0;
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
