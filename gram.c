@@ -213,6 +213,12 @@ void editormovecursor(int c)
         }
         break;
     }
+    row = (E.cy >= E.numrows)?NULL : &E.row[E.cy+1];
+    int rowlen = row?row->size:0;
+    if(E.cx > rowlen)
+    {
+        E.cx = rowlen;
+    }
 }
 void editorKeyProcess()
 {
@@ -347,7 +353,7 @@ void rowAppend(char *s, ssize_t len)
 {
     E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
     int at = E.numrows;
-    E.row[at].size = len;
+    E.row[at].size = len + 1;
 
     E.row[at].chars = malloc(len + 1);
     memcpy(E.row[at].chars, s, len);
