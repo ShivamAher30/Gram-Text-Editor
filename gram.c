@@ -211,11 +211,16 @@ void editormovecursor(int c)
         {
             E.cx++;
         }
+        else
+        {
+            E.cy++;
+            E.cx = 0;
+        }
         break;
     }
-    row = (E.cy >= E.numrows)?NULL : &E.row[E.cy+1];
-    int rowlen = row?row->size:0;
-    if(E.cx > rowlen)
+    row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy + 1];
+    int rowlen = row ? row->size : 0;
+    if (E.cx > rowlen)
     {
         E.cx = rowlen;
     }
@@ -229,17 +234,28 @@ void editorKeyProcess()
         exit(0);
 
         break;
-    case PAGE_DOWN:
+    case 
     case PAGE_UP:
+    case PAGE_DOWN:
         // We create a code block with that pair of braces so that we’re allowed to declare the times variable. (You can’t declare variables directly inside a switch statement.)
         {
-            int time = E.screenrows;
-            while (time--)
+            if (c == PAGE_UP)
             {
-                editormovecursor(c == PAGE_DOWN ? ARROW_DOWN : ARROW_UP);
+                E.cy = E.rowoff;
             }
+            else if (c == PAGE_DOWN)
+            {
+                E.cy = E.rowoff + E.screenrows - 1;
+                if (E.cy > E.numrows)
+                    E.cy = E.numrows;
+            }
+            int times = E.screenrows;
+            while (times--)
+            {
+                editormovecursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+            }
+            break;
         }
-        break;
     case ARROW_UP:
     case ARROW_LEFT:
     case ARROW_DOWN:
