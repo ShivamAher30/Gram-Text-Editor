@@ -37,7 +37,7 @@ struct editorConfig
 {
     int cx, cy;
     int numrows;
-    erow * row;
+    erow *row;
 
     int screenrows;
     int screencolumns;
@@ -309,6 +309,18 @@ void editorrefreshscreen()
     write(STDOUT_FILENO, ab.b, ab.len);
     abFree(&ab);
 }
+// Row Operations
+void rowAppend(char *s, int len)
+{
+    E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
+    int at = E.numrows;
+    E.row[at].size = len;
+
+    E.row[at].chars = malloc(len + 1);
+    memcpy(E.row[at].chars, s, len);
+    E.row[at].chars[len] = '\0';
+    E.numrows++;
+}
 // file i/o
 void editoropen(char *filename)
 {
@@ -317,36 +329,19 @@ void editoropen(char *filename)
         die("fopen");
     char *line = NULL;
     ssize_t linecap = 0;
-    ssize_t linelen = getline(&line, &linecap, fl);
-    if (linelen != -1)
+    ssize_t linelen;
+    while ((linelen = getline(&line, &linecap, fl)) != -1)
     {
-        while (linelen > 0 && line[linelen - 1] == '\r' || line[linelen - 1] == '\n')
+        while (linelen > 0 && line[linelen - 1] == '\n' || line[linelen - 1] == '\r')
         {
             linelen--;
         }
+        rowAppend(line, linelen);
     }
-    E.row.size = linelen;
 
-    E.row.chars = malloc(sizeof(char) * (linelen + 1));
-    memcpy(E.row.chars, line, E.row.size);
-    E.row.chars[linelen] = '\0';
-    E.numrows++;
     free(line);
     fclose(fl);
-
 }
-// Row Operations 
-void rowAppend(char * s  , int len)
-{
-    E.row = realloc( E.row, sizeof(E.row)*(E.numrows + 1));
-    int at = E.numrows;
-    E.row[at].chars = malloc(sizeof(E.row[at].chars) * (len+1));
-    memcpy(E.row[at].chars , s , len);
-    E.row[at].chars[len] = '\0';
-    E.numrows++;
-
-}
-
 
 // init
 
@@ -357,22 +352,20 @@ void initeditor()
     E.numrows = 0;
     E.row = NULL;
 
-
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
         die("Getwindowsize");
     }
 }
 
-int main(int argc  , char * argv[])
+int main(int argc, char *argv[])
 {
     enablerawMode();
     initeditor();
-    if(argc > 1)
+    if (argc > 1)
     {
         editoropen(argv[1]);
     }
-    
 
     char c;
     while (1)
