@@ -310,10 +310,21 @@ void editorrefreshscreen()
     abFree(&ab);
 }
 // file i/o
-void editoropen()
+void editoropen(char *filename)
 {
-    char *line = "Hello World !";
-    ssize_t linelen = 13;
+    FILE *fl = fopen(filename, "r");
+    if (!fl)
+        die("fopen");
+    char *line = NULL;
+    int linecap = 0;
+    ssize_t linelen = getline(&line, &linecap, fl);
+    if (linelen != -1)
+    {
+        while (linelen > 0 && line[linelen - 1] == '\r' || line[linelen - 1] == '\n')
+        {
+            linelen--;
+        }
+    }
     E.row.size = linelen;
 
     E.row.chars = malloc(sizeof(char) * (linelen + 1));
@@ -335,11 +346,15 @@ void initeditor()
     }
 }
 
-int main()
+int main(int argc  , char * argv[])
 {
     enablerawMode();
     initeditor();
-    editoropen();
+    if(argc > 1)
+    {
+        editoropen(argv[1]);
+    }
+    
 
     char c;
     while (1)
