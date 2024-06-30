@@ -234,7 +234,6 @@ void editorKeyProcess()
         exit(0);
 
         break;
-    case 
     case PAGE_UP:
     case PAGE_DOWN:
         // We create a code block with that pair of braces so that we’re allowed to declare the times variable. (You can’t declare variables directly inside a switch statement.)
@@ -317,15 +316,11 @@ void editordrawtilde(struct abf *ab)
                 abappend("\r\n", 2, ab);
             }
 
-            else if (i < E.screenrows - 1)
+            else if (i < E.screenrows)
             {
                 abappend("~", 1, ab);
                 abappend("\x1b[K", 3, ab);
                 abappend("\r\n", 2, ab);
-            }
-            else
-            {
-                abappend("~", 1, ab);
             }
         }
         else
@@ -347,6 +342,20 @@ void editordrawtilde(struct abf *ab)
 }
 #define ABUF_INIT {NULL, 0}
 
+
+void editordrawstatusbar(struct abf *ab)
+{
+    abappend("\x1b[7m", 4, ab);
+
+    int len = 0;
+    while (len < E.screencolumns)
+    {
+        abappend(" ", 1, ab);
+        len++;
+    }
+
+    abappend("\x1b[m", 3, ab);
+}
 void editorrefreshscreen()
 {
     scrolleditor();
@@ -355,8 +364,9 @@ void editorrefreshscreen()
     // The following commmand is used to reposition the cursor at top of the terminal
     abappend("\x1b[H", 3, &ab);
     editordrawtilde(&ab);
+    editordrawstatusbar(&ab);
 
-    char buf[32];
+        char buf[32];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.cx - E.coloff) + 1);
     abappend(buf, strlen(buf), &ab);
 
