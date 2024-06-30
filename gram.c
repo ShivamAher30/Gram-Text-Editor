@@ -36,8 +36,8 @@ typedef struct erow
 struct editorConfig
 {
     int cx, cy;
-    erow row;
     int numrows;
+    erow * row;
 
     int screenrows;
     int screencolumns;
@@ -194,7 +194,7 @@ void editormovecursor(int c)
             E.cy--;
         break;
     case ARROW_LEFT:
-        if (E.cx > 1)
+        if (E.cx != 0)
             E.cx--;
         break;
     case ARROW_DOWN:
@@ -243,7 +243,7 @@ void editordrawtilde(struct abf *ab)
     {
         if (i >= E.numrows)
         {
-            if (i == E.screenrows / 3)
+            if (i == E.screenrows / 3 && E.numrows == 0)
             {
                 char welcome[80];
                 int welcomelen = snprintf(welcome, sizeof(welcome), "Gram Text Editor %s ", GRAM_VERSION);
@@ -280,12 +280,12 @@ void editordrawtilde(struct abf *ab)
         }
         else
         {
-            int len = E.row.size;
+            int len = E.row[i].size;
             if (len > E.screencolumns)
             {
                 len = E.screencolumns;
             }
-            abappend(E.row.chars, len, ab);
+            abappend(E.row[i].chars, len, ab);
             abappend("\x1b[K", 3, ab);
             abappend("\r\n", 2, ab);
         }
@@ -316,7 +316,7 @@ void editoropen(char *filename)
     if (!fl)
         die("fopen");
     char *line = NULL;
-    int linecap = 0;
+    ssize_t linecap = 0;
     ssize_t linelen = getline(&line, &linecap, fl);
     if (linelen != -1)
     {
@@ -331,7 +331,23 @@ void editoropen(char *filename)
     memcpy(E.row.chars, line, E.row.size);
     E.row.chars[linelen] = '\0';
     E.numrows++;
+    free(line);
+    fclose(fl);
+
 }
+// Row Operations 
+void rowAppend(char * s  , int len)
+{
+    E.row = realloc( E.row, sizeof(E.row)*(E.numrows + 1));
+    int at = E.numrows;
+    E.row[at].chars = malloc(sizeof(E.row[at].chars) * (len+1));
+    memcpy(E.row[at].chars , s , len);
+    E.row[at].chars[len] = '\0';
+    E.numrows++;
+
+}
+
+
 // init
 
 void initeditor()
@@ -339,6 +355,8 @@ void initeditor()
     E.cx = 0;
     E.cy = 0;
     E.numrows = 0;
+    E.row = NULL;
+
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
