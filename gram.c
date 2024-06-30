@@ -189,7 +189,7 @@ int readkey()
 // Input
 void editormovecursor(int c)
 {
-    erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+    erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy + 1];
     switch (c)
     {
     case ARROW_UP:
@@ -318,6 +318,7 @@ void editordrawtilde(struct abf *ab)
             }
             abappend(&E.row[filerow].chars[E.coloff], len, ab);
             abappend("\x1b[K", 3, ab);
+
             abappend("\r\n", 2, ab);
         }
     }
@@ -342,7 +343,7 @@ void editorrefreshscreen()
     abFree(&ab);
 }
 // Row Operations
-void rowAppend(char *s, int len)
+void rowAppend(char *s, ssize_t len)
 {
     E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
     int at = E.numrows;
@@ -361,10 +362,10 @@ void editoropen(char *filename)
         die("fopen");
     char *line = NULL;
     ssize_t linecap = 0;
-    ssize_t linelen;
+    ssize_t linelen = 0;
     while ((linelen = getline(&line, &linecap, fl)) != -1)
     {
-        while (linelen > 0 && line[linelen - 1] == '\n' || line[linelen - 1] == '\r')
+        while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
         {
             linelen--;
         }
