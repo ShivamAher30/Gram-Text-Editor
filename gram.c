@@ -39,6 +39,8 @@ struct editorConfig
     int numrows;
     erow *row;
     int rowoff;
+    int coloff;
+
     int screenrows;
     int screencolumns;
     struct termios originalstruct;
@@ -187,6 +189,7 @@ int readkey()
 // Input
 void editormovecursor(int c)
 {
+    erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
     switch (c)
     {
     case ARROW_UP:
@@ -204,8 +207,10 @@ void editormovecursor(int c)
             E.cy++;
         break;
     case ARROW_RIGHT:
-        if (E.cx - 1 < E.screencolumns)
+        if (row && E.cx < row->size)
+        {
             E.cx++;
+        }
         break;
     }
 }
@@ -248,6 +253,14 @@ void scrolleditor()
     if (E.cy >= E.screenrows + E.rowoff)
     {
         E.rowoff = E.cy - E.screenrows + 1;
+    }
+    if (E.cx < E.coloff)
+    {
+        E.coloff = E.cx;
+    }
+    if (E.cx >= E.coloff + E.screencolumns)
+    {
+        E.coloff = E.cx - E.screencolumns + 1;
     }
 }
 void editordrawtilde(struct abf *ab)
@@ -295,12 +308,15 @@ void editordrawtilde(struct abf *ab)
         }
         else
         {
-            int len = E.row[filerow].size;
+            int len = E.row[filerow].size - E.coloff;
+            if (len < 0)
+                len = 0;
+
             if (len > E.screencolumns)
             {
                 len = E.screencolumns;
             }
-            abappend(E.row[filerow].chars, len, ab);
+            abappend(&E.row[filerow].chars[E.coloff], len, ab);
             abappend("\x1b[K", 3, ab);
             abappend("\r\n", 2, ab);
         }
@@ -318,7 +334,7 @@ void editorrefreshscreen()
     editordrawtilde(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", 0 , 0);
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.cx - E.coloff) + 1);
     abappend(buf, strlen(buf), &ab);
 
     abappend("\x1b[?25h", 6, &ab);
@@ -368,6 +384,7 @@ void initeditor()
     E.numrows = 0;
     E.row = NULL;
     E.rowoff = 0;
+    E.coloff = 0;
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
