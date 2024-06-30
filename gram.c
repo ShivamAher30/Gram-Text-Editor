@@ -40,7 +40,7 @@ struct editorConfig
     erow *row;
     int rowoff;
     int coloff;
-
+    char *filename;
     int screenrows;
     int screencolumns;
     struct termios originalstruct;
@@ -342,16 +342,29 @@ void editordrawtilde(struct abf *ab)
 }
 #define ABUF_INIT {NULL, 0}
 
-
 void editordrawstatusbar(struct abf *ab)
 {
     abappend("\x1b[7m", 4, ab);
+    char status[80], rstatus[80];
+    int len = snprintf(status, sizeof(status), "%.20s - %d lines ", E.filename ? E.filename : "[No File Opened]", E.numrows);
+    int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", E.cy + 1, E.numrows);
 
-    int len = 0;
+    if (len > E.screencolumns)
+        len = E.screencolumns;
+    abappend(status, len, ab);
     while (len < E.screencolumns)
     {
-        abappend(" ", 1, ab);
-        len++;
+        if (rlen + len >= E.screencolumns)
+        {
+            abappend(rstatus, rlen, ab);
+            break;
+        }
+        else
+        {
+
+            abappend(" ", 1, ab);
+            len++;
+        }
     }
 
     abappend("\x1b[m", 3, ab);
@@ -366,7 +379,7 @@ void editorrefreshscreen()
     editordrawtilde(&ab);
     editordrawstatusbar(&ab);
 
-        char buf[32];
+    char buf[32];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.cx - E.coloff) + 1);
     abappend(buf, strlen(buf), &ab);
 
@@ -389,6 +402,9 @@ void rowAppend(char *s, ssize_t len)
 // file i/o
 void editoropen(char *filename)
 {
+    free(E.filename);
+    E.filename = strdup(filename);
+
     FILE *fl = fopen(filename, "r");
     if (!fl)
         die("fopen");
