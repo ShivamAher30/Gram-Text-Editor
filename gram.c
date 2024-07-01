@@ -418,7 +418,7 @@ void editormessagebar(struct abf *ab)
     {
         msglen = E.screencolumns;
     }
-    if (msglen && time(NULL) - E.status_msg_time < 7.5)
+    if (msglen && time(NULL) - E.status_msg_time < 5)
     {
         abappend(E.statusmsg, msglen, ab);
     }
@@ -531,26 +531,7 @@ char *editorRowsToString(int *buflen)
     return buf;
 }
 
-// char *editorRowsToString(int *buflen)
-// {
-//     int totlen = 0;
-//     for (int i = 0; i < E.numrows; i++)
-//     {
-//         totlen += E.row[i].size + 1;
-//     }
-//     char *p = malloc(sizeof(char) * totlen);
-//     char *buf = p;
-//     int index = 0;
-//     for (int i = 0; i < E.numrows; i++)
-//     {
-//         memcpy(&buf[index], E.row[i].chars, E.row[i].size);
-//         buf[index + E.row[i].size] = '\n';
 
-//         index += E.row[i].size + 1;
-//     }
-//     *buflen = totlen;
-//     return p;
-// }
 void editorsave()
 {
     if (E.filename == NULL)
@@ -567,6 +548,10 @@ void editorsave()
             {
                 close(fd);
                 free(buf);
+                editorsetstatusmsg("%d-bytes saved to file !!!- %s " , len , E.filename);
+                
+                E.status_msg_time = time(NULL);
+                
                 return;
             }
         }
