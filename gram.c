@@ -32,7 +32,10 @@ enum editorKey
 typedef struct erow
 {
     int size;
+    int rsize;
     char *chars;
+    char *render;
+
 
 } erow;
 struct editorConfig
@@ -345,6 +348,17 @@ void editordrawtilde(struct abf *ab)
     }
 }
 #define ABUF_INIT {NULL, 0}
+void editorUpdateRow(erow *row) {
+  free(row->render);
+  row->render = malloc(row->size + 1);
+  int j;
+  int idx = 0;
+  for (j = 0; j < row->size; j++) {
+    row->render[idx++] = row->chars[j];
+  }
+  row->render[idx] = '\0';
+  row->rsize = idx;
+}
 
 void editordrawstatusbar(struct abf *ab)
 {
@@ -428,7 +442,11 @@ void rowAppend(char *s, ssize_t len)
     E.row[at].chars = malloc(len + 1);
     memcpy(E.row[at].chars, s, len);
     E.row[at].chars[len] = '\0';
+    E.row[at].rsize = 0;
+    E.row[at].render = NULL;
     E.numrows++;
+    editorUpdateRow(&E.row[at]);
+
 }
 // file i/o
 void editoropen(char *filename)
@@ -460,7 +478,7 @@ void editoropen(char *filename)
 void initeditor()
 {
     E.cx = 0;
-    E.cy = 0;
+; E.cy = 0;
     E.numrows = 0;
     E.row = NULL;
     E.rowoff = 0;
