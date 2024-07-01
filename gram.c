@@ -516,21 +516,41 @@ char *editorRowsToString(int *buflen)
     int totlen = 0;
     for (int i = 0; i < E.numrows; i++)
     {
-        totlen += E.row[i].size + 1;
+        totlen += E.row[i].size;
     }
-    char *p = malloc(sizeof(char) * totlen);
-    char *buf = p;
-    int index = 0;
+    char *buf = malloc(totlen);
+    char *p = buf;
     for (int i = 0; i < E.numrows; i++)
     {
-        memcpy(&buf[index], E.row[i].chars, E.row[i].size);
-        buf[index + E.row[i].size] = '\n';
-
-        index += E.row[i].size + 1;
+        memcpy(p, E.row[i].chars, E.row[i].size - 1);
+        p += E.row[i].size - 1;
+        *p = '\n'; // Add a newline after each row
+        p++;
     }
     *buflen = totlen;
-    return p;
+    return buf;
 }
+
+// char *editorRowsToString(int *buflen)
+// {
+//     int totlen = 0;
+//     for (int i = 0; i < E.numrows; i++)
+//     {
+//         totlen += E.row[i].size + 1;
+//     }
+//     char *p = malloc(sizeof(char) * totlen);
+//     char *buf = p;
+//     int index = 0;
+//     for (int i = 0; i < E.numrows; i++)
+//     {
+//         memcpy(&buf[index], E.row[i].chars, E.row[i].size);
+//         buf[index + E.row[i].size] = '\n';
+
+//         index += E.row[i].size + 1;
+//     }
+//     *buflen = totlen;
+//     return p;
+// }
 void editorsave()
 {
     if (E.filename == NULL)
