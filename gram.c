@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <time.h>
+#include <stdarg.h>
 
 // Defines
 #define CTRL_KEY(k) ((k) & (0x1f))
@@ -44,6 +46,8 @@ struct editorConfig
     int screenrows;
     int screencolumns;
     struct termios originalstruct;
+    char statusmsg[80];
+    time_t status_msg_time;
 };
 struct editorConfig E;
 
@@ -368,6 +372,21 @@ void editordrawstatusbar(struct abf *ab)
     }
 
     abappend("\x1b[m", 3, ab);
+    // abappend("\r\n", 2, ab);
+}
+void editormessagebar(struct abf *ab)
+{
+    abappend("\x1b[K", 3, ab);
+    int msglen = strlen(E.statusmsg);
+    if (msglen > E.screencolumns)
+    {
+        msglen = E.screencolumns;
+    }
+    if(msglen && time(NULL) - E.status_msg_time < 7.5)
+    {
+        abappend(E.statusmsg , msglen,ab );
+
+    }
 }
 void editorrefreshscreen()
 {
@@ -378,6 +397,8 @@ void editorrefreshscreen()
     abappend("\x1b[H", 3, &ab);
     editordrawtilde(&ab);
     editordrawstatusbar(&ab);
+    editormessagebar(&ab);
+
 
     char buf[32];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.cx - E.coloff) + 1);
@@ -387,6 +408,16 @@ void editorrefreshscreen()
     write(STDOUT_FILENO, ab.b, ab.len);
     abFree(&ab);
 }
+void editorsetstatusmsg(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(E.statusmsg, sizeof(E.statusmsg), fmt, ap);
+
+    va_end(ap);
+    E.status_msg_time = time(NULL);
+}
+
 // Row Operations
 void rowAppend(char *s, ssize_t len)
 {
@@ -434,11 +465,15 @@ void initeditor()
     E.row = NULL;
     E.rowoff = 0;
     E.coloff = 0;
+    E.filename = NULL;
+    E.statusmsg[0] = '\0';
+    E.status_msg_time = 0;
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
         die("Getwindowsize");
     }
+    E.screenrows -= 1;
 }
 
 int main(int argc, char *argv[])
@@ -449,6 +484,7 @@ int main(int argc, char *argv[])
     {
         editoropen(argv[1]);
     }
+    editorsetstatusmsg("Welcome to the code Editor" );
 
     char c;
     while (1)
