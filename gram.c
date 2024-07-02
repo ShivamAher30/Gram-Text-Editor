@@ -34,6 +34,7 @@ enum editorKey
 void editorinsertchar(int c);
 void editorsave();
 void editorsetstatusmsg(const char *fmt, ...);
+void editordelchar();
 // struct
 typedef struct erow
 {
@@ -251,6 +252,8 @@ void editorKeyProcess()
     case BACKSPACE:
     case CTRL_KEY('h'):
     case DEL_KEY:
+        editordelchar();
+
         break;
     case 'q':
         if (E.dirty && quit_times > 0)
@@ -258,8 +261,8 @@ void editorKeyProcess()
             editorsetstatusmsg("WARNING!!! File has unsaved changes. "
                                "Press Ctrl-Q %d more times to quit.",
                                quit_times);
-                               quit_times--;
-        return;
+            quit_times--;
+            return;
         }
         exit(0);
 
@@ -478,6 +481,32 @@ void rowAppend(char *s, ssize_t len)
     E.numrows++;
     editorUpdateRow(&E.row[at]);
 }
+void editorfreerow(erow *row)
+{
+    free(row->chars);
+    free(row->render);
+}
+void editordelrow(int at)
+
+{
+    if (at < 0 || at > E.numrows)
+    {
+        return;
+    }
+    erow *row = &E.row[at];
+    memmove(&E.row[at], &E.row[at + 1], sizeof(erow *) * (E.numrows - at - 1));
+    E.numrows--;
+    E.dirty++;
+}
+void editorrowappendstring(erow *row, char *s, size_t len)
+{
+    row->chars = realloc(row->chars, row->size + len + 1);
+    memcpy(&row->chars[row->size], s, len);
+    row->size += len;
+    row->chars[row->size] = '\0';
+    editorUpdateRow(row);
+    E.dirty++;
+}
 void editorRowInsertChar(erow *row, int at, int c)
 {
     if (at < 0 || at > row->size)
@@ -499,6 +528,48 @@ void editorinsertchar(int c)
     E.cx++;
     E.dirty++;
 }
+void editorrowdelchar(erow *row, int at)
+{
+    if (at < 0 || at > row->size)
+    {
+        return;
+    }
+    memmove(&row->chars[at], &row->chars[at + 1], row->size - at);
+    row->size--;
+    editorUpdateRow(row);
+    E.dirty--;
+}
+
+void editordelchar()
+
+{
+    if (E.cy == E.numrows)
+    {
+        return;
+    }
+    if (E.cx == 0 && E.cy == 0)
+    {
+        return;
+    }
+    erow *row = &E.row[E.cy + 1];
+    if (E.cx > row->size)
+    {
+        return;
+    }
+    if (E.cx > 0)
+    {
+        E.cx--;
+        editorrowdelchar(row, E.cx);
+    }
+    else
+    {
+        E.cx = E.row[E.cy].size;
+        editorrowappendstring(&E.row[E.cy], row->chars, row->size);
+        editordelrow(E.cy+1);
+        E.cy--;
+    }
+}
+
 // file i/o
 void editoropen(char *filename)
 {
