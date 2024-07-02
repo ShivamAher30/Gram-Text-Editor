@@ -18,7 +18,7 @@
 // Defines
 #define CTRL_KEY(k) ((k) & (0x1f))
 #define GRAM_VERSION "1.0.0.0"
-
+#define KILO_QUIT_TIMES 3
 enum editorKey
 {
     BACKSPACE = 127,
@@ -33,6 +33,7 @@ enum editorKey
 // define functions
 void editorinsertchar(int c);
 void editorsave();
+void editorsetstatusmsg(const char *fmt, ...);
 // struct
 typedef struct erow
 {
@@ -55,6 +56,7 @@ struct editorConfig
     struct termios originalstruct;
     char statusmsg[80];
     time_t status_msg_time;
+    int dirty;
 };
 struct editorConfig E;
 
@@ -238,6 +240,7 @@ void editormovecursor(int c)
 }
 void editorKeyProcess()
 {
+    static int quit_times = 3;
     int c = readkey();
     switch (c)
     {
@@ -250,6 +253,14 @@ void editorKeyProcess()
     case DEL_KEY:
         break;
     case 'q':
+        if (E.dirty && quit_times > 0)
+        {
+            editorsetstatusmsg("WARNING!!! File has unsaved changes. "
+                               "Press Ctrl-Q %d more times to quit.",
+                               quit_times);
+                               quit_times--;
+        return;
+        }
         exit(0);
 
         break;
@@ -386,7 +397,7 @@ void editordrawstatusbar(struct abf *ab)
 {
     abappend("\x1b[7m", 4, ab);
     char status[80], rstatus[80];
-    int len = snprintf(status, sizeof(status), "%.20s - %d lines ", E.filename ? E.filename : "[No File Opened]", E.numrows);
+    int len = snprintf(status, sizeof(status), "%.20s - %d lines %s", E.filename ? E.filename : "[No File Opened]", E.numrows, E.dirty ? "[MODIFIED]" : " ");
     int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", E.cy + 1, E.numrows);
 
     if (len > E.screencolumns)
@@ -486,6 +497,7 @@ void editorinsertchar(int c)
     }
     editorRowInsertChar(&E.row[E.cy + 1], E.cx, c);
     E.cx++;
+    E.dirty++;
 }
 // file i/o
 void editoropen(char *filename)
@@ -531,7 +543,6 @@ char *editorRowsToString(int *buflen)
     return buf;
 }
 
-
 void editorsave()
 {
     if (E.filename == NULL)
@@ -548,10 +559,11 @@ void editorsave()
             {
                 close(fd);
                 free(buf);
-                editorsetstatusmsg("%d-bytes saved to file !!!- %s " , len , E.filename);
-                
+                E.dirty = 0;
+                editorsetstatusmsg("%d-bytes saved to file !!!- %s ", len, E.filename);
+
                 E.status_msg_time = time(NULL);
-                
+
                 return;
             }
         }
@@ -563,8 +575,8 @@ void editorsave()
 
 void initeditor()
 {
+    E.dirty = 0;
     E.cx = 0;
-    ;
     E.cy = 0;
     E.numrows = 0;
     E.row = NULL;
