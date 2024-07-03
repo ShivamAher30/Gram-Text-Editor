@@ -19,6 +19,8 @@
 #define CTRL_KEY(k) ((k) & (0x1f))
 #define GRAM_VERSION "1.0.0.0"
 #define KILO_QUIT_TIMES 3
+#define ABUF_INIT {NULL, 0}
+
 enum editorKey
 {
     BACKSPACE = 127,
@@ -35,6 +37,7 @@ void editorinsertchar(int c);
 void editorsave();
 void editorsetstatusmsg(const char *fmt, ...);
 void editordelchar();
+void JumptoLine(char c);
 // struct
 typedef struct erow
 {
@@ -243,6 +246,8 @@ void editorKeyProcess()
 {
     static int quit_times = 3;
     int c = readkey();
+
+    // JumptoLine(c);
     switch (c)
     {
     case CTRL_KEY('s'):
@@ -377,7 +382,8 @@ void editordrawtilde(struct abf *ab)
             {
                 char *linenum;
                 linenum = malloc(sizeof(char) * 3);
-                snprintf(linenum, 3, "%d|", i - 1);
+                snprintf(linenum, 3, "%d|", i > E.cy ? i - E.cy - 1 : E.cy - i+1);
+
                 abappend(linenum, 3, ab);
             }
             abappend(&E.row[filerow].chars[E.coloff], len, ab);
@@ -387,7 +393,6 @@ void editordrawtilde(struct abf *ab)
         }
     }
 }
-#define ABUF_INIT {NULL, 0}
 void editorUpdateRow(erow *row)
 {
     free(row->render);
