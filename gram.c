@@ -37,7 +37,7 @@ void editorinsertchar(int c);
 void editorsave();
 void editorsetstatusmsg(const char *fmt, ...);
 void editordelchar();
-void JumptoLine(char c);
+void JumptoLine(int direction);
 // struct
 typedef struct erow
 {
@@ -242,6 +242,7 @@ void editormovecursor(int c)
         E.cx = rowlen;
     }
 }
+
 void editorKeyProcess()
 {
     static int quit_times = 3;
@@ -250,6 +251,12 @@ void editorKeyProcess()
     // JumptoLine(c);
     switch (c)
     {
+    case CTRL_KEY('a'):
+        JumptoLine(1);
+        break;
+    case CTRL_KEY('d'):
+        JumptoLine(0);
+        break;
     case CTRL_KEY('s'):
         editorsave();
         break;
@@ -381,8 +388,22 @@ void editordrawtilde(struct abf *ab)
             if (i > 1)
             {
                 char *linenum;
-                linenum = malloc(sizeof(char) * 3);
-                snprintf(linenum, 3, "%d|", i > E.cy ? i - E.cy - 1 : E.cy - i+1);
+                linenum = malloc(sizeof(char) * 4);
+                char value = i > E.cy ? i - E.cy - 1 : E.cy - i + 1;
+                if (E.rowoff > 0)
+                {
+                    value -= E.rowoff;
+                }
+
+                if (value >= 10)
+                {
+
+                    snprintf(linenum, 4, "+%d|", value % 10);
+                }
+                else
+                {
+                    snprintf(linenum, 4, " %d|", value);
+                };
 
                 abappend(linenum, 3, ab);
             }
@@ -624,7 +645,38 @@ char *editorRowsToString(int *buflen)
     *buflen = totlen;
     return buf;
 }
+// Jump to Line
+void JumptoLine(int direction)
+{
 
+    editorsetstatusmsg("%s", direction == 1 ? "jump up to " : "jump down to");
+
+    // if direction is 1 jump upwards else downwards
+    int num = readkey();
+    if (num >= 48 && num <= 57)
+    {
+        if (num == 'e')
+        {
+            return;
+        }
+        num -= 48;
+        if (direction == 0 && E.cy + num < E.screenrows)
+        {
+            editorsetstatusmsg("+%d", E.cy + num);
+            E.cy += num;
+            return;
+        }
+        if (direction == 1 && E.cy - num > 0)
+        {
+            editorsetstatusmsg("-%d", E.cy - num);
+            E.cy -= num;
+        }
+        else
+        {
+            editorsetstatusmsg("Invalid Line Position");
+        }
+    }
+}
 void editorsave()
 {
     if (E.filename == NULL)
