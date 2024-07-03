@@ -393,6 +393,11 @@ void editordrawtilde(struct abf *ab)
                 if (E.rowoff > 0)
                 {
                     value -= E.rowoff;
+                    if(value < 0)
+                    {
+                        value*=-1;
+                        
+                    }
                 }
 
                 if (value >= 10)
