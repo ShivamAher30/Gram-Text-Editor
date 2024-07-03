@@ -373,7 +373,13 @@ void editordrawtilde(struct abf *ab)
             {
                 len = E.screencolumns;
             }
-
+            if (i > 1)
+            {
+                char *linenum;
+                linenum = malloc(sizeof(char) * 3);
+                snprintf(linenum, 3, "%d|", i - 1);
+                abappend(linenum, 3, ab);
+            }
             abappend(&E.row[filerow].chars[E.coloff], len, ab);
             abappend("\x1b[K", 3, ab);
 
@@ -565,7 +571,7 @@ void editordelchar()
     {
         E.cx = E.row[E.cy].size;
         editorrowappendstring(&E.row[E.cy], row->chars, row->size);
-        editordelrow(E.cy+1);
+        editordelrow(E.cy + 1);
         E.cy--;
     }
 }
@@ -649,13 +655,14 @@ void initeditor()
     E.dirty = 0;
     E.cx = 0;
     E.cy = 0;
-    E.numrows = 0;
+    E.numrows = 1;
     E.row = NULL;
     E.rowoff = 0;
     E.coloff = 0;
     E.filename = NULL;
     E.statusmsg[0] = '\0';
     E.status_msg_time = 0;
+    rowAppend(" \0", 2);
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
