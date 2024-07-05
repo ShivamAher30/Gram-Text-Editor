@@ -35,7 +35,9 @@ enum editorKey
 enum editorHighlight
 {
     HL_NORMAL = 0,
-    HL_NUMBER
+    HL_NUMBER,
+    HL_KEYWORD1,
+    HL_KEYWORD2,
 };
 // struct
 typedef struct erow
@@ -711,13 +713,13 @@ void JumptoLine(int direction)
         num -= 48;
         if (direction == 0 && (E.cy + num) % E.screenrows < E.screenrows)
         {
-            editorsetstatusmsg("+%d", E.cy + num);
+            editorsetstatusmsg("+%d",  num);
             E.cy += num;
             return;
         }
         if (direction == 1 && E.cy - num > 0)
         {
-            editorsetstatusmsg("-%d", E.cy - num);
+            editorsetstatusmsg("-%d",  num);
             E.cy -= num;
         }
         else
@@ -765,6 +767,33 @@ void editorUpdateSyntax(erow *row)
     row->hl = realloc(row->hl, row->rsize);
     memset(row->hl, HL_NORMAL, row->rsize);
     int i = 0;
+    char *keywords[] = {
+        "#define",
+        "switch",
+        "if",
+        "while",
+        "for",
+        "break",
+        "continue",
+        "return",
+        "else",
+        "struct",
+        "union",
+        "typedef",
+        "static",
+        "enum",
+        "class",
+        "case",
+        "int|",
+        "long|",
+        "double|",
+        "float|",
+        "char|",
+        "unsigned|",
+        "signed|",
+        "void|",
+        "#include",
+        NULL};
 
     int prev_sep = 1;
     while (i < row->size)
@@ -778,6 +807,29 @@ void editorUpdateSyntax(erow *row)
             prev_sep = 0;
             continue;
         }
+        if (prev_sep)
+        {
+            int j;
+            for (j = 0; keywords[j]; j++)
+            {
+                int klen = strlen(keywords[j]);
+                int kw2 = keywords[j][klen - 1] == '|';
+                if (kw2)
+                    klen--;
+                if (!strncmp(&row->render[i], keywords[j], klen) &&
+                    is_separator(row->render[i + klen]))
+                {
+                    memset(&row->hl[i], kw2 ? HL_KEYWORD2 : HL_KEYWORD1, klen);
+                    i += klen;
+                    break;
+                }
+            }
+            if (keywords[j] != NULL)
+            {
+                prev_sep = 0;
+                continue;
+            }
+        }
         prev_sep = is_separator(c);
         i++;
     }
@@ -789,6 +841,10 @@ int editorSyntaxtocolor(int hl)
     case HL_NUMBER:
         return 31;
         break;
+    case HL_KEYWORD1:
+        return 33;
+    case HL_KEYWORD2:
+        return 32;
 
     default:
         return 37;
