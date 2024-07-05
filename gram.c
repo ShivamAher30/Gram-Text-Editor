@@ -441,6 +441,7 @@ void editortildedraw(struct abf *ab)
                     char buf[16];
                     if (color != currentcolor)
                     {
+                        currentcolor = color;
                         int clen = snprintf(buf, 16, "\x1b[%dm", color);
                         // int clen = snprintf(buf, 16, "Thsiis%d", color);
                         abappend(buf, clen, ab);
@@ -755,19 +756,29 @@ void editorsave()
 }
 
 // Syntax Highlighting
-
+int is_separator(int c)
+{
+    return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];", c) != NULL;
+}
 void editorUpdateSyntax(erow *row)
 {
     row->hl = realloc(row->hl, row->rsize);
     memset(row->hl, HL_NORMAL, row->rsize);
     int i = 0;
+
+    int prev_sep = 1;
     while (i < row->size)
     {
         char c = row->render[i];
-        if (isdigit(c))
+        unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
+        if (isdigit(c) && (prev_sep || prev_hl == HL_NUMBER))
         {
             row->hl[i] = HL_NUMBER;
+            i++;
+            prev_sep = 0;
+            continue;
         }
+        prev_sep = is_separator(c);
         i++;
     }
 }
