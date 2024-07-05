@@ -32,12 +32,11 @@ enum editorKey
     PAGE_DOWN,
     DEL_KEY
 };
-// define functions
-void editorinsertchar(int c);
-void editorsave();
-void editorsetstatusmsg(const char *fmt, ...);
-void editordelchar();
-void JumptoLine(int direction);
+enum editorHighlight
+{
+    HL_NORMAL = 0,
+    HL_NUMBER
+};
 // struct
 typedef struct erow
 {
@@ -45,6 +44,7 @@ typedef struct erow
     int rsize;
     char *chars;
     char *render;
+    unsigned char *hl;
 
 } erow;
 struct editorConfig
@@ -70,6 +70,15 @@ struct abf
     char *b;
     int len;
 };
+// define functions
+void editorinsertchar(int c);
+void editorsave();
+void editorsetstatusmsg(const char *fmt, ...);
+void editordelchar();
+void JumptoLine(int direction);
+void editorUpdateSyntax(erow *row);
+int editorSyntaxtocolor(int hl);
+
 // append Buffer
 
 void abappend(char *s, int len, struct abf *ptr)
@@ -336,7 +345,7 @@ void scrolleditor()
         E.coloff = E.cx - E.screencolumns + 1;
     }
 }
-void editordrawtilde(struct abf *ab)
+void editortildedraw(struct abf *ab)
 {
     for (int i = 0; i < E.screenrows; i++)
     {
@@ -393,10 +402,9 @@ void editordrawtilde(struct abf *ab)
                 if (E.rowoff > 0)
                 {
                     value -= E.rowoff;
-                    if(value < 0)
+                    if (value < 0)
                     {
-                        value*=-1;
-                        
+                        value *= -1;
                     }
                 }
 
@@ -412,7 +420,30 @@ void editordrawtilde(struct abf *ab)
 
                 abappend(linenum, 3, ab);
             }
-            abappend(&E.row[filerow].chars[E.coloff], len, ab);
+            char *linetoprint = &E.row[filerow].render[E.coloff];
+            unsigned char *hl = &E.row[filerow].hl[E.coloff];
+
+            for (int j = 0; j < len; j++)
+            {
+
+                if (hl[j] == HL_NORMAL)
+                {
+                    abappend("\x1b[39m", 5, ab);
+                    abappend(&linetoprint[j], 1, ab);
+                }
+                else
+                {
+                    int color = editorSyntaxtocolor(hl[j]);
+                    char buf[16];
+                    int clen = snprintf(buf, 16, "\x1b[%dm", color);
+                    abappend(buf, clen, ab);
+                    abappend(&linetoprint[j], 1, ab);
+                }
+                abappend("\x1b[39m", 5, ab);
+            }
+
+            // abappend(&(linetoprint[E.coloff]), len, ab);
+
             abappend("\x1b[K", 3, ab);
 
             abappend("\r\n", 2, ab);
@@ -431,6 +462,7 @@ void editorUpdateRow(erow *row)
     }
     row->render[idx] = '\0';
     row->rsize = idx;
+    editorUpdateSyntax(row);
 }
 
 void editordrawstatusbar(struct abf *ab)
@@ -481,7 +513,7 @@ void editorrefreshscreen()
     abappend("\x1b[?25l", 6, &ab);
     // The following commmand is used to reposition the cursor at top of the terminal
     abappend("\x1b[H", 3, &ab);
-    editordrawtilde(&ab);
+    editortildedraw(&ab);
     editordrawstatusbar(&ab);
     editormessagebar(&ab);
 
@@ -504,6 +536,7 @@ void editorsetstatusmsg(const char *fmt, ...)
 }
 
 // Row Operations
+// void editorInsertRow
 void rowAppend(char *s, ssize_t len)
 {
     E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
@@ -514,6 +547,7 @@ void rowAppend(char *s, ssize_t len)
     memcpy(E.row[at].chars, s, len);
     E.row[at].chars[len] = '\0';
     E.row[at].rsize = 0;
+    E.row[at].hl = NULL;
     E.row[at].render = NULL;
     E.numrows++;
     editorUpdateRow(&E.row[at]);
@@ -522,6 +556,7 @@ void editorfreerow(erow *row)
 {
     free(row->chars);
     free(row->render);
+    free(row->hl);
 }
 void editordelrow(int at)
 
@@ -665,7 +700,7 @@ void JumptoLine(int direction)
             return;
         }
         num -= 48;
-        if (direction == 0 && E.cy + num < E.screenrows)
+        if (direction == 0 && (E.cy + num)%E.screenrows < E.screenrows)
         {
             editorsetstatusmsg("+%d", E.cy + num);
             E.cy += num;
@@ -710,6 +745,35 @@ void editorsave()
     }
     free(buf);
 }
+
+// Syntax Highlighting
+
+void editorUpdateSyntax(erow *row)
+{
+    row->hl = realloc(row->hl, row->rsize);
+    memset(row->hl, HL_NORMAL, row->size);
+    for (int i = 0; i < row->rsize; i++)
+    {
+        if (isdigit(row->render[i]))
+        {
+            row->hl[i] = HL_NUMBER;
+        }
+    }
+}
+int editorSyntaxtocolor(int hl)
+{
+    switch (hl)
+    {
+    case HL_NUMBER:
+        return 37;
+        break;
+
+    default:
+        return 31;
+        break;
+    }
+}
+
 // init
 
 void initeditor()
