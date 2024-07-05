@@ -422,25 +422,33 @@ void editortildedraw(struct abf *ab)
             }
             char *linetoprint = &E.row[filerow].render[E.coloff];
             unsigned char *hl = &E.row[filerow].hl[E.coloff];
-
+            int currentcolor = -1;
             for (int j = 0; j < len; j++)
             {
 
                 if (hl[j] == HL_NORMAL)
                 {
-                    abappend("\x1b[39m", 5, ab);
+                    if (currentcolor != -1)
+                    {
+                        abappend("\x1b[39m", 5, ab);
+                        currentcolor = -1;
+                    }
                     abappend(&linetoprint[j], 1, ab);
                 }
                 else
                 {
                     int color = editorSyntaxtocolor(hl[j]);
                     char buf[16];
-                    int clen = snprintf(buf, 16, "\x1b[%dm", color);
-                    abappend(buf, clen, ab);
+                    if (color != currentcolor)
+                    {
+                        int clen = snprintf(buf, 16, "\x1b[%dm", color);
+                        // int clen = snprintf(buf, 16, "Thsiis%d", color);
+                        abappend(buf, clen, ab);
+                    }
                     abappend(&linetoprint[j], 1, ab);
                 }
-                abappend("\x1b[39m", 5, ab);
             }
+            abappend("\x1b[39m", 5, ab);
 
             // abappend(&(linetoprint[E.coloff]), len, ab);
 
@@ -700,7 +708,7 @@ void JumptoLine(int direction)
             return;
         }
         num -= 48;
-        if (direction == 0 && (E.cy + num)%E.screenrows < E.screenrows)
+        if (direction == 0 && (E.cy + num) % E.screenrows < E.screenrows)
         {
             editorsetstatusmsg("+%d", E.cy + num);
             E.cy += num;
@@ -751,13 +759,16 @@ void editorsave()
 void editorUpdateSyntax(erow *row)
 {
     row->hl = realloc(row->hl, row->rsize);
-    memset(row->hl, HL_NORMAL, row->size);
-    for (int i = 0; i < row->rsize; i++)
+    memset(row->hl, HL_NORMAL, row->rsize);
+    int i = 0;
+    while (i < row->size)
     {
-        if (isdigit(row->render[i]))
+        char c = row->render[i];
+        if (isdigit(c))
         {
             row->hl[i] = HL_NUMBER;
         }
+        i++;
     }
 }
 int editorSyntaxtocolor(int hl)
@@ -765,11 +776,11 @@ int editorSyntaxtocolor(int hl)
     switch (hl)
     {
     case HL_NUMBER:
-        return 37;
+        return 31;
         break;
 
     default:
-        return 31;
+        return 37;
         break;
     }
 }
