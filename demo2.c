@@ -1,5 +1,6 @@
 // Include Header Files
-
+Ctrl + A => Jump Upward w.r.t to relative code line
+Ctrl + D => Jump Down w.r.t to relative code line
 #include <unistd.h>
 #include <termios.h>
 #include <stdlib.h>
@@ -32,7 +33,7 @@ enum editorKey
     PAGE_DOWN,
     DEL_KEY
 };
-enum editorHighlight
+
 {
     HL_NORMAL = 0,
     HL_NUMBER,
@@ -81,9 +82,8 @@ void JumptoLine(int direction);
 void editorUpdateSyntax(erow *row);
 int editorSyntaxtocolor(int hl);
 
-// append Buffer
-
-void abappend(char *s, int len, struct abf *ptr)
+//
+void  abappend(char * s  , int len ,  )
 {
     char *new = realloc(ptr->b, ptr->len + len);
     if (new == NULL)

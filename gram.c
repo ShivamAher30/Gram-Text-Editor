@@ -235,7 +235,7 @@ void editormovecursor(int c)
             E.cy++;
         break;
     case ARROW_RIGHT:
-        if (row && E.cx < row->size)
+        if ( E.cx-9 < row->size)
         {
             E.cx++;
         }
@@ -278,11 +278,11 @@ void editorKeyProcess()
         editordelchar();
 
         break;
-    case 'q':
+    case CTRL_KEY('t'):
         if (E.dirty && quit_times > 0)
         {
             editorsetstatusmsg("WARNING!!! File has unsaved changes. "
-                               "Press Ctrl-Q %d more times to quit.",
+                               "Press Ctrl-T %d more times to quit.",
                                quit_times);
             quit_times--;
             return;
