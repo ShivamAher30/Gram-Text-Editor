@@ -422,7 +422,8 @@ void editortildedraw(struct abf *ab)
 
                 abappend(linenum, 3, ab);
             }
-            char *linetoprint = &E.row[filerow].render[E.coloff];
+            // char *linetoprint = &E.row[filerow].render[E.coloff];
+            char *linetoprint = &E.row[filerow].chars[E.coloff];
             unsigned char *hl = &E.row[filerow].hl[E.coloff];
             int currentcolor = -1;
             for (int j = 0; j < len; j++)
@@ -607,7 +608,7 @@ void editorinsertchar(int c)
     {
         rowAppend("", 0);
     }
-    editorRowInsertChar(&E.row[E.cy + 1], E.cx, c);
+    editorRowInsertChar(&E.row[E.cy + 1], E.cx - 3, c);
     E.cx++;
     E.dirty++;
 }
@@ -713,13 +714,13 @@ void JumptoLine(int direction)
         num -= 48;
         if (direction == 0 && (E.cy + num) % E.screenrows < E.screenrows)
         {
-            editorsetstatusmsg("+%d",  num);
+            editorsetstatusmsg("+%d", num);
             E.cy += num;
             return;
         }
         if (direction == 1 && E.cy - num > 0)
         {
-            editorsetstatusmsg("-%d",  num);
+            editorsetstatusmsg("-%d", num);
             E.cy -= num;
         }
         else
@@ -858,7 +859,9 @@ void initeditor()
 {
     E.dirty = 0;
     E.cx = 0;
-    E.cy = 0;
+    E.cy = 1;
+    rowAppend(" ", 1);
+    E.row[0].hl =NULL; 
     E.numrows = 1;
     E.row = NULL;
     E.rowoff = 0;
@@ -866,7 +869,6 @@ void initeditor()
     E.filename = NULL;
     E.statusmsg[0] = '\0';
     E.status_msg_time = 0;
-    rowAppend(" \0", 2);
 
     if (getwindowsize(&E.screenrows, &E.screencolumns) == -1)
     {
